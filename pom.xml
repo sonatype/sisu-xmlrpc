@@ -27,9 +27,9 @@
     <version>6</version>
   </parent> 
   <groupId>org.sonatype.sisu</groupId>
-  <artifactId>xmlrpc</artifactId>
+  <artifactId>sisu-xmlrpc</artifactId>
   <name>Sisu XML-RPC</name>
-  <version>3.1.4-SNAPSHOT</version>
+  <version>1.0.0-SNAPSHOT</version>
   <description>
     Sisu XML-RPC is a Java implementation of XML-RPC, a popular protocol that uses XML over HTTP to
     implement remote procedure calls. Compared to SOAP, or JAX-RPC, it is stable, much simpler and easier to handle.
@@ -64,12 +64,12 @@
     <dependencies>
       <dependency>
         <groupId>org.sonatype.sisu</groupId>
-        <artifactId>xmlrpc-common</artifactId>
+        <artifactId>sisu-xmlrpc-common</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
         <groupId>org.sonatype.sisu</groupId>
-        <artifactId>xmlrpc-client</artifactId>
+        <artifactId>sisu-xmlrpc-client</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
