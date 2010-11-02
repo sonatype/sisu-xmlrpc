@@ -46,14 +46,20 @@
   </modules>
 
   <build>
-  	<resources>
-  		<resource>
-  			<filtering>true</filtering>
-  			<directory>src/main/filtered-resources</directory>
-  		</resource>
-  	</resources>
+    <resources>
+      <resource>
+        <filtering>true</filtering>
+        <directory>src/main/filtered-resources</directory>
+      </resource>
+    </resources>
   </build>
 
+  <scm>
+    <connection>scm:git:git@github.com:sonatype/sisu-xmlrpc.git</connection>
+    <developerConnection>scm:git:git@github.com:sonatype/sisu-xmlrpc.git</developerConnection>
+    <url>git@github.com:sonatype/sisu-xmlrpc.git</url>
+  </scm>
+  
   <dependencyManagement>
     <dependencies>
       <dependency>
