@@ -1,10 +1,11 @@
 package org.apache.xmlrpc.client;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.concurrent.ExecutionException;
-
+import com.ning.http.client.Body;
+import com.ning.http.client.BodyGenerator;
+import com.ning.http.client.FluentCaseInsensitiveStringsMap;
+import com.ning.http.client.Response;
+import com.ning.http.client.SimpleAsyncHttpClient;
+import com.ning.http.client.generators.ByteArrayBodyGenerator;
 import org.apache.xmlrpc.XmlRpcException;
 import org.apache.xmlrpc.XmlRpcRequest;
 import org.apache.xmlrpc.common.XmlRpcStreamConfig;
@@ -12,15 +13,11 @@ import org.apache.xmlrpc.common.XmlRpcStreamRequestConfig;
 import org.apache.xmlrpc.util.XmlRpcIOException;
 import org.xml.sax.SAXException;
 
-import com.ning.http.client.AsyncHttpClient;
-import com.ning.http.client.AsyncHttpClient.BoundRequestBuilder;
-import com.ning.http.client.AsyncHttpClientConfig;
-import com.ning.http.client.AsyncHttpClientConfig.Builder;
-import com.ning.http.client.FluentCaseInsensitiveStringsMap;
-import com.ning.http.client.Realm;
-import com.ning.http.client.Realm.RealmBuilder;
-import com.ning.http.client.Request;
-import com.ning.http.client.Response;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.util.concurrent.ExecutionException;
 
 // Timeouts x
 // HTTPS
@@ -33,22 +30,19 @@ public class XmlRpcAhcTransport
 {
     private static final String userAgent = USER_AGENT + " (Async HTTP Client Transport)";
 
-    private AsyncHttpClient client;
+    private SimpleAsyncHttpClient client;
 
-    private Builder asyncClientConfigBuilder;
-    
-    private RealmBuilder realmBuilder;
-    
-    private BoundRequestBuilder requestBuilder;
+    private final SimpleAsyncHttpClient.Builder builder = new SimpleAsyncHttpClient.Builder();
 
     private FluentCaseInsensitiveStringsMap headers;
 
     private XmlRpcHttpClientConfig config;
 
+    private final ByteArrayOutputStream byteOs = new ByteArrayOutputStream();
+
     public XmlRpcAhcTransport( XmlRpcAhcTransportFactory xmlRpcAhcTransportFactory )
     {
         super( xmlRpcAhcTransportFactory.getClient(), userAgent );        
-        asyncClientConfigBuilder = new AsyncHttpClientConfig.Builder();
         headers = new FluentCaseInsensitiveStringsMap();
     }
 
@@ -63,30 +57,20 @@ public class XmlRpcAhcTransport
         config = (XmlRpcHttpClientConfig) xmlRpcRequest.getConfig();
         
         super.initHttpHeaders( xmlRpcRequest );
-        
+
         if (config.getConnectionTimeout() != 0)
         {
-            asyncClientConfigBuilder.setConnectionTimeoutInMs( config.getConnectionTimeout() );
+            builder.setConnectionTimeoutInMs( config.getConnectionTimeout() );
         }
         
         if (config.getReplyTimeout() != 0)
         {
-            asyncClientConfigBuilder.setRequestTimeoutInMs( config.getReplyTimeout() );
+            builder.setRequestTimeoutInMs( config.getReplyTimeout() );
         }
         
-        //
-        // This doesn't seem like a great place, but I'm copying the commons http client
-        //
-        client = new AsyncHttpClient( asyncClientConfigBuilder.build() );
-        
-        requestBuilder = client.preparePost( config.getServerURL().toString() );
-        
-        if( realmBuilder != null )
-        {
-            requestBuilder.setRealm( realmBuilder.build() );
-        }
-        
-        requestBuilder.setFollowRedirects( true );        
+        builder.setUrl( config.getServerURL().toString() )
+               .setFollowRedirects( true );
+
     }
 
     @Override
@@ -103,8 +87,8 @@ public class XmlRpcAhcTransport
                 enc = XmlRpcStreamConfig.UTF8_ENCODING;
             }
 
-            realmBuilder = (new Realm.RealmBuilder()).setPrincipal( userName ).setPassword( pConfig.getBasicPassword() )
-                    .setUsePreemptiveAuth( true ).setEnconding( enc );
+            builder.setRealmPrincipal( userName ).setRealmPassword( pConfig.getBasicPassword() )
+                    .setRealmUsePreemptiveAuth( true ).setRealmEnconding( enc );
         }
     }
 
@@ -118,25 +102,18 @@ public class XmlRpcAhcTransport
     protected void writeRequest( final ReqWriter writer )
         throws XmlRpcException, IOException, SAXException
     {        
-        requestBuilder.setBody( new Request.EntityWriter()
+        try
         {
-            public void writeEntity( OutputStream out )
-                throws IOException
-            {
-                try
-                {
-                    writer.write( out );
-                }
-                catch ( XmlRpcException e )
-                {
-                    throw new XmlRpcIOException( e );
-                }
-                catch ( SAXException e )
-                {
-                    throw new XmlRpcIOException( e );
-                }
-            }
-        } );
+            writer.write( byteOs );
+        }
+        catch ( XmlRpcException e )
+        {
+            throw new XmlRpcIOException( e );
+        }
+        catch ( SAXException e )
+        {
+            throw new XmlRpcIOException( e );
+        }
     }
 
     //
@@ -155,10 +132,10 @@ public class XmlRpcAhcTransport
     {
         try
         {
-            requestBuilder.build();
+            client = builder.setHeaders(headers).build();
             
             // Check the status of the return
-            Response response = requestBuilder.execute().get();
+            Response response = client.post(new ByteArrayBodyGenerator( byteOs.toByteArray() )).get();
 
             return response.getResponseBodyAsStream();
         }
@@ -173,6 +150,8 @@ public class XmlRpcAhcTransport
         catch ( IOException e )
         {
             throw new XmlRpcClientException( "I/O error in server communication: " + e.getMessage(), e );
+        } finally {
+            byteOs.reset();
         }
     }
 
