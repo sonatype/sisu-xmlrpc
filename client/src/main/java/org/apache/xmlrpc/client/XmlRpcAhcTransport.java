@@ -1,7 +1,5 @@
 package org.apache.xmlrpc.client;
 
-import com.ning.http.client.Body;
-import com.ning.http.client.BodyGenerator;
 import com.ning.http.client.FluentCaseInsensitiveStringsMap;
 import com.ning.http.client.Response;
 import com.ning.http.client.SimpleAsyncHttpClient;
@@ -16,15 +14,9 @@ import org.xml.sax.SAXException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutionException;
 
-// Timeouts x
-// HTTPS
-// Proxies
-// GZip
 // Encoding
-// Redirects
 public class XmlRpcAhcTransport
     extends XmlRpcHttpTransport
 {
@@ -36,13 +28,11 @@ public class XmlRpcAhcTransport
 
     private FluentCaseInsensitiveStringsMap headers;
 
-    private XmlRpcHttpClientConfig config;
-
     private final ByteArrayOutputStream byteOs = new ByteArrayOutputStream();
 
     public XmlRpcAhcTransport( XmlRpcAhcTransportFactory xmlRpcAhcTransportFactory )
     {
-        super( xmlRpcAhcTransportFactory.getClient(), userAgent );        
+        super( xmlRpcAhcTransportFactory.getClient(), userAgent );
         headers = new FluentCaseInsensitiveStringsMap();
     }
 
@@ -54,22 +44,70 @@ public class XmlRpcAhcTransport
     protected void initHttpHeaders( XmlRpcRequest xmlRpcRequest )
         throws XmlRpcClientException
     {
-        config = (XmlRpcHttpClientConfig) xmlRpcRequest.getConfig();
-        
+        if ( !XmlRpcClientConfigImpl.class.isAssignableFrom( xmlRpcRequest.getConfig().getClass() ) )
+        {
+            throw new XmlRpcClientException( "Invalid XmlRpcRequest", null );
+        }
+
+        XmlRpcClientConfigImpl config = XmlRpcClientConfigImpl.class.cast( xmlRpcRequest.getConfig() );
+
         super.initHttpHeaders( xmlRpcRequest );
 
-        if (config.getConnectionTimeout() != 0)
+        configureProxy( config );
+        configureTimeout( config );
+
+        if ( config.getSslContext() != null )
+        {
+            builder.setSSLContext( config.getSslContext() );
+        }
+
+        if (config.isGzipRequesting())
+        {
+            builder.setRequestCompressionLevel(6);
+        }
+
+        builder.setUrl( config.getServerURL().toString() ).setFollowRedirects( config.isFollowRedirect() );
+    }
+
+    private void configureProxy( XmlRpcClientConfigImpl config )
+    {
+        if ( config.getProxyHost() != null )
+        {
+            builder.setProxyHost( config.getProxyHost() );
+        }
+
+        if ( config.getProxyPort() != 0 )
+        {
+            builder.setProxyPort( config.getProxyPort() );
+        }
+
+        if ( config.getProxyPrincipal() != null )
+        {
+            builder.setProxyPrincipal( config.getProxyPrincipal() );
+        }
+
+        if ( config.getProxyPassword() != null )
+        {
+            builder.setProxyPassword( config.getProxyPassword() );
+        }
+    }
+
+    private void configureTimeout( XmlRpcClientConfigImpl config )
+    {
+        if ( config.getConnectionTimeout() != 0 )
         {
             builder.setConnectionTimeoutInMs( config.getConnectionTimeout() );
         }
-        
-        if (config.getReplyTimeout() != 0)
+
+        if ( config.getReplyTimeout() != 0 )
         {
             builder.setRequestTimeoutInMs( config.getReplyTimeout() );
         }
-        
-        builder.setUrl( config.getServerURL().toString() )
-               .setFollowRedirects( true );
+
+        if ( config.getConnectiomIdleTimeout() > 0 )
+        {
+            builder.setConnectionTimeoutInMs( config.getConnectiomIdleTimeout() );
+        }
 
     }
 
@@ -87,8 +125,8 @@ public class XmlRpcAhcTransport
                 enc = XmlRpcStreamConfig.UTF8_ENCODING;
             }
 
-            builder.setRealmPrincipal( userName ).setRealmPassword( pConfig.getBasicPassword() )
-                    .setRealmUsePreemptiveAuth( true ).setRealmEnconding( enc );
+            builder.setRealmPrincipal( userName ).setRealmPassword(
+                pConfig.getBasicPassword() ).setRealmUsePreemptiveAuth( true ).setRealmEnconding( enc );
         }
     }
 
@@ -101,7 +139,7 @@ public class XmlRpcAhcTransport
     @Override
     protected void writeRequest( final ReqWriter writer )
         throws XmlRpcException, IOException, SAXException
-    {        
+    {
         try
         {
             writer.write( byteOs );
@@ -132,10 +170,10 @@ public class XmlRpcAhcTransport
     {
         try
         {
-            client = builder.setHeaders(headers).build();
-            
+            client = builder.setHeaders( headers ).build();
+
             // Check the status of the return
-            Response response = client.post(new ByteArrayBodyGenerator( byteOs.toByteArray() )).get();
+            Response response = client.post( new ByteArrayBodyGenerator( byteOs.toByteArray() ) ).get();
 
             return response.getResponseBodyAsStream();
         }
@@ -150,7 +188,9 @@ public class XmlRpcAhcTransport
         catch ( IOException e )
         {
             throw new XmlRpcClientException( "I/O error in server communication: " + e.getMessage(), e );
-        } finally {
+        }
+        finally
+        {
             byteOs.reset();
         }
     }
