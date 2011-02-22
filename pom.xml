@@ -40,16 +40,16 @@
   <inceptionYear>2001</inceptionYear>
 
   <modules>
-    <module>common</module>
-    <module>client</module>
-    <module>server</module>
+    <module>sisu-xmlrpc-common</module>
+    <module>sisu-xmlrpc-client</module>
+    <module>sisu-xmlrpc-server</module>
   </modules>
 
   <build>
     <resources>
       <resource>
         <filtering>true</filtering>
-        <directory>src/main/filtered-resources</directory>
+        <directory>src/main/resources-filtered</directory>
       </resource>
     </resources>
   </build>
