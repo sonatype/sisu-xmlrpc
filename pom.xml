@@ -59,11 +59,19 @@
     <developerConnection>scm:git:git@github.com:sonatype/sisu-xmlrpc.git</developerConnection>
     <url>git@github.com:sonatype/sisu-xmlrpc.git</url>
   </scm>
-  
+
   <ciManagement>
     <system>Hudson</system>
     <url>https://builds.sonatype.org/job/sisu-xmlrpc/</url>
   </ciManagement>
+
+  <dependencies>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 
   <dependencyManagement>
     <dependencies>
@@ -93,6 +101,12 @@
         <groupId>org.apache.ws.commons.util</groupId>
         <artifactId>ws-commons-util</artifactId>
         <version>1.0.2</version>
+        <exclusions>
+          <exclusion>
+            <artifactId>junit</artifactId>
+            <groupId>junit</groupId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>jaxme</groupId>
